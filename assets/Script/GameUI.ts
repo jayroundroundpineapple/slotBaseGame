@@ -324,7 +324,6 @@ export default class GameUI extends cc.Component {
             y: item.y
         }))
         itemsWithIndex.sort((a, b) => b.y - a.y)
-        
         // 标准位置数组（从大到小）：300, 150, 0, -150, -300
         let standardPositions = []
         for(let i = 0; i < GameConf.SlotRowNum; i++){
