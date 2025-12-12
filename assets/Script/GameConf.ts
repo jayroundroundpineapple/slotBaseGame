@@ -26,7 +26,7 @@ export class GameConf{
     public static SlotFirstY = 300
 
     /**最后1个slot的Y坐标 */
-    public static SlotLastY = -300
+    public static SlotLastY = -450
 }
 
 window['GameConf'] = GameConf

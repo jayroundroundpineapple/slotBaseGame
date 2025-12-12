@@ -22,6 +22,7 @@ export default class GameUI extends cc.Component {
     @property(cc.Node)
     private maskNode:cc.Node = null
 
+    stopColMunArr:boolean[] = [false,false,false]
     slotItemArr:cc.Node[][] = [];
     private bgmAudioFlag:boolean = true
     private canPlayMusic:boolean = false
@@ -45,6 +46,10 @@ export default class GameUI extends cc.Component {
         })
         this.resize()
         this.initGame()
+        this.scheduleOnce(()=>{
+            this.stopColMunArr[0] = true
+            this.stopColMunArr[1] = true
+        },3.5)
     }
     /**初始化slot的位置 */
     private initGame(){
@@ -59,6 +64,31 @@ export default class GameUI extends cc.Component {
                 this.slotItemArr[i].push(slotItemNode)
             }
         }
+        this.setAnim()
+    }
+    setAnim(){
+        for(let i = 0; i < this.slotItemArr.length; i++){
+            for(let j = 0; j < GameConf.SlotRowNum; j++){
+                this.doSlotAnim(this.slotItemArr[i][j],i)
+            }
+        }
+    }
+    //slot的五个y坐标是【300，150，0，-150，-300】，slot显示区域在150到-150之间，然后到slot的y坐标小于或等于-300的时候，回到第一个位置
+    doSlotAnim(node:cc.Node,column:number){
+        cc.tween(node)
+            .by(0.5, { y:-GameConf.SlotItemHeight })
+            .call(()=>{
+                if(node.y <= GameConf.SlotLastY){
+                    //回到第一个位置
+                    node.setPosition(0, GameConf.SlotFirstY)
+                }
+                if(this.stopColMunArr[column]){
+                    //停止动画
+                    return
+                }
+                this.doSlotAnim(node,column)       
+            })
+            .start()
     }
     private getRandomInt(min: number, max: number) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
