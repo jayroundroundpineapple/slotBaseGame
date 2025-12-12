@@ -21,12 +21,24 @@ export default class GameUI extends cc.Component {
     private maxBg:cc.Node = null
     @property(cc.Node)
     private maskNode:cc.Node = null
+    @property(cc.Node)
+    private startBtn:cc.Node = null  // 启动按钮
 
     stopColMunArr:boolean[] = [false,false,false]
     slotItemArr:cc.Node[][] = [];
     private bgmAudioFlag:boolean = true
     private canPlayMusic:boolean = false
     private gameModel: GameModel = null
+    
+    // 动画控制相关
+    private isSpinning:boolean = false  // 是否正在旋转
+    private columnAnimTweens:cc.Tween[] = []  // 每列的动画tween
+    private columnSpeeds:number[] = [0.5, 0.5, 0.5]  // 每列的当前速度（duration）
+    private targetSpriteIds:number[] = [-1, -1, -1]  // 每列的目标spriteId
+    private columnStopCounts:number[] = [0, 0, 0]  // 每列需要移动的次数（用于减速）
+    private minSpeed:number = 0.05  // 最快速度
+    private maxSpeed:number = 0.5  // 最慢速度
+    private speedChangeStep:number = 0.01  // 速度变化步长
     protected onLoad(): void {
         this.gameModel = new GameModel()
         this.gameModel.mGame = this
@@ -46,10 +58,11 @@ export default class GameUI extends cc.Component {
         })
         this.resize()
         this.initGame()
-        this.scheduleOnce(()=>{
-            this.stopColMunArr[0] = true
-            this.stopColMunArr[1] = true
-        },3.5)
+        
+        // 绑定启动按钮事件
+        if(this.startBtn){
+            this.startBtn.on(cc.Node.EventType.TOUCH_END, this.onStartBtnClick, this)
+        }
     }
     /**初始化slot的位置 */
     private initGame(){
@@ -59,36 +72,254 @@ export default class GameUI extends cc.Component {
             for(let j = 0; j < GameConf.SlotRowNum; j++){
                 let slotItemNode = cc.instantiate(this.slotItemPre)
                 slotItemNode.parent = this.slotColmunArr[i]
-                slotItemNode.getComponent(slotItem).initItem(spriteIndexArr[i][j])
+                let slotItemComp = slotItemNode.getComponent(slotItem)
+                slotItemComp.initItem(spriteIndexArr[i][j])
                 slotItemNode.setPosition(0, GameConf.SlotFirstY - j * GameConf.SlotItemHeight)
                 this.slotItemArr[i].push(slotItemNode)
             }
         }
-        this.setAnim()
     }
-    setAnim(){
+    
+    /**启动按钮点击事件 */
+    private onStartBtnClick(){
+        if(this.isSpinning){
+            return  // 正在旋转中，不响应
+        }
+        this.canPlayMusic && cc.audioEngine.play(RESSpriteFrame.instance.clickAudioClip, false, 1)
+        this.startSlotMachine()
+    }
+    
+    /**启动老虎机
+     * @param targetIds 每列的目标spriteId数组，如果不传则随机
+     */
+    public startSlotMachine(targetIds?:number[]){
+        if(this.isSpinning){
+            return
+        }
+        this.isSpinning = true
+        
+        // 设置目标spriteId（如果未指定则随机）
+        if(!targetIds){
+            targetIds = [
+                1,
+                2,
+                3
+            ]
+        }
+        this.targetSpriteIds = targetIds
+        // 重置状态
+        this.stopColMunArr = [false, false, false]
+        this.columnSpeeds = [this.maxSpeed, this.maxSpeed, this.maxSpeed]
+        this.columnStopCounts = [0, 0, 0]
+        // 停止所有现有动画
+        this.stopAllAnimations()
+        // 启动每列的动画
+        for(let i = 0; i < this.slotColmunArr.length; i++){
+            this.startColumnAnimation(i)
+        }
+    }
+    
+    /**启动指定列的动画 */
+    private startColumnAnimation(column:number){
+        // 计算需要移动的次数（加速阶段 + 匀速阶段 + 减速阶段）
+        let speedUpSteps = 8  // 加速阶段步数
+        let constantSteps = 15 + this.getRandomInt(5, 15)  // 匀速阶段步数（随机增加变化）
+        let slowDownSteps = 12  // 减速阶段步数
+        // 计算需要额外移动的步数，确保停止时显示区域中心的item有正确的spriteIndex
+        let extraSteps = this.calculateExtraSteps(column, this.targetSpriteIds[column])
+        let totalSteps = speedUpSteps + constantSteps + slowDownSteps + extraSteps
+        this.columnStopCounts[column] = totalSteps
+        // 开始动画
+        this.doSlotAnimWithSpeed(column, 0, totalSteps, speedUpSteps, slowDownSteps)
+    }
+    
+    /**计算需要额外移动的步数，使显示区域中心的item有指定的spriteIndex */
+    private calculateExtraSteps(column:number, targetSpriteId:number):number{
+        // 显示区域中心Y坐标（根据配置，显示3行，中心在0）
+        let displayCenterY = 0
+        // 找到当前最接近显示区域中心的item
+        let centerItem = this.getItemAtY(column, displayCenterY)
+        if(!centerItem){
+            return 0
+        }
+        // 找到目标spriteIndex的item
+        let targetItem = null
+        for(let i = 0; i < this.slotItemArr[column].length; i++){
+            let item = this.slotItemArr[column][i]
+            let comp = item.getComponent(slotItem)
+            if(comp && comp.spriteIndex === targetSpriteId){
+                targetItem = item
+                break
+            }
+        }
+        if(!targetItem){
+            return 0
+        }
+        // 计算需要移动的距离（向上移动，y值减小）
+        let currentY = centerItem.y
+        let targetY = targetItem.y
+        // 如果targetItem在currentItem下方，需要多转一圈
+        if(targetY > currentY){
+            // targetItem在下方，需要移动 (5个item的高度) + (currentY - targetY)
+            let steps = Math.ceil((GameConf.SlotItemHeight * GameConf.SlotRowNum + (currentY - targetY)) / GameConf.SlotItemHeight)
+            return steps
+        } else {
+            // targetItem在上方，直接计算步数
+            let steps = Math.ceil((currentY - targetY) / GameConf.SlotItemHeight)
+            return steps
+        }
+    }
+    
+    /**获取指定Y坐标位置的item */
+    private getItemAtY(column:number, y:number):cc.Node{
+        let minDist = Infinity
+        let closestItem = null
+        for(let i = 0; i < this.slotItemArr[column].length; i++){
+            let item = this.slotItemArr[column][i]
+            let dist = Math.abs(item.y - y)
+            if(dist < minDist){
+                minDist = dist
+                closestItem = item
+            }
+        }
+        return closestItem
+    }
+    
+    /**带速度变化的slot动画 */
+    private doSlotAnimWithSpeed(column:number, currentStep:number, totalSteps:number, speedUpSteps:number, slowDownSteps:number){
+        if(this.stopColMunArr[column]){
+            return
+        }
+        
+        // 计算当前速度
+        let speed = this.maxSpeed
+        if(currentStep < speedUpSteps){
+            // 加速阶段：从慢到快
+            let progress = currentStep / speedUpSteps
+            speed = this.maxSpeed - (this.maxSpeed - this.minSpeed) * progress
+        } else if(currentStep >= totalSteps - slowDownSteps){
+            // 减速阶段：从快到慢
+            let progress = (currentStep - (totalSteps - slowDownSteps)) / slowDownSteps
+            speed = this.minSpeed + (this.maxSpeed - this.minSpeed) * progress
+        } else {
+            // 匀速阶段
+            speed = this.minSpeed
+        }
+        
+        this.columnSpeeds[column] = speed
+        
+        // 同步移动该列的所有item
+        let completedCount = 0
+        let itemCount = this.slotItemArr[column].length
+        
+        for(let j = 0; j < itemCount; j++){
+            let node = this.slotItemArr[column][j]
+            cc.tween(node)
+                .by(speed, { y: -GameConf.SlotItemHeight })
+                .call(() => {
+                    if(node.y <= GameConf.SlotLastY){
+                        // 回到第一个位置，并更新spriteIndex（循环）
+                        node.setPosition(0, GameConf.SlotFirstY)
+                        this.updateItemSpriteIndex(node, column)
+                    }
+                    
+                    // 所有item移动完成后，继续下一步
+                    completedCount++
+                    if(completedCount >= itemCount){
+                        let nextStep = currentStep + 1
+                        if(nextStep >= totalSteps){
+                            // 停止该列
+                            this.stopColumn(column)
+                        } else {
+                            this.doSlotAnimWithSpeed(column, nextStep, totalSteps, speedUpSteps, slowDownSteps)
+                        }
+                    }
+                })
+                .start()
+        }
+    }
+    
+    /**更新item的spriteIndex（循环） */
+    private updateItemSpriteIndex(node:cc.Node, column:number){
+        let comp = node.getComponent(slotItem)
+        if(comp){
+            let currentIdx = comp.spriteIndex
+            let nextIdx = (currentIdx + 1) % 5  // 假设有5种sprite（0-4）
+            comp.initItem(nextIdx)
+        }
+    }
+    
+    /**停止指定列 */
+    private stopColumn(column:number){
+        this.stopColMunArr[column] = true
+        
+        // 停止该列的所有动画
+        for(let j = 0; j < this.slotItemArr[column].length; j++){
+            cc.Tween.stopAllByTarget(this.slotItemArr[column][j])
+        }
+        
+        // 精确调整位置，确保显示区域的item有正确的spriteIndex
+        this.adjustColumnPosition(column, this.targetSpriteIds[column])
+        
+        // 检查是否所有列都停止了
+        let allStopped = true
+        for(let i = 0; i < this.stopColMunArr.length; i++){
+            if(!this.stopColMunArr[i]){
+                allStopped = false
+                break
+            }
+        }
+        
+        if(allStopped){
+            this.isSpinning = false
+            // 可以在这里添加停止后的回调
+            this.onSlotMachineStopped()
+        }
+    }
+    
+    /**精确调整列的位置 */
+    private adjustColumnPosition(column:number, targetSpriteId:number){
+        // 显示区域中心Y坐标
+        let displayCenterY = 0
+        
+        // 找到目标spriteIndex的item
+        let targetItem = null
+        for(let i = 0; i < this.slotItemArr[column].length; i++){
+            let item = this.slotItemArr[column][i]
+            let itemComp = item.getComponent(slotItem)
+            if(itemComp && itemComp.spriteIndex === targetSpriteId){
+                targetItem = item
+                break
+            }
+        }
+        
+        if(!targetItem){
+            return
+        }
+        
+        // 计算需要调整的偏移量
+        let offset = targetItem.y - displayCenterY
+        
+        // 调整该列所有item的位置
+        for(let i = 0; i < this.slotItemArr[column].length; i++){
+            let item = this.slotItemArr[column][i]
+            item.y -= offset
+        }
+    }
+    
+    /**停止所有动画 */
+    private stopAllAnimations(){
         for(let i = 0; i < this.slotItemArr.length; i++){
-            for(let j = 0; j < GameConf.SlotRowNum; j++){
-                this.doSlotAnim(this.slotItemArr[i][j],i)
+            for(let j = 0; j < this.slotItemArr[i].length; j++){
+                cc.Tween.stopAllByTarget(this.slotItemArr[i][j])
             }
         }
     }
-    //slot的五个y坐标是【300，150，0，-150，-300】，slot显示区域在150到-150之间，然后到slot的y坐标小于或等于-300的时候，回到第一个位置
-    doSlotAnim(node:cc.Node,column:number){
-        cc.tween(node)
-            .by(0.5, { y:-GameConf.SlotItemHeight })
-            .call(()=>{
-                if(node.y <= GameConf.SlotLastY){
-                    //回到第一个位置
-                    node.setPosition(0, GameConf.SlotFirstY)
-                }
-                if(this.stopColMunArr[column]){
-                    //停止动画
-                    return
-                }
-                this.doSlotAnim(node,column)       
-            })
-            .start()
+    
+    /**老虎机停止后的回调 */
+    private onSlotMachineStopped(){
+        console.log('老虎机停止，结果：', this.targetSpriteIds)
+        // 可以在这里添加停止后的逻辑，比如检查中奖等
     }
     private getRandomInt(min: number, max: number) {
         return Math.floor(Math.random() * (max - min + 1)) + min;

@@ -8,6 +8,7 @@ export default class slotItem extends cc.Component {
     
     _spriteIdx:number = -1;
     initItem(spriteIndex:number){
+        this._spriteIdx = spriteIndex; // 设置spriteIndex
         cc.loader.loadRes(`/slot/slot${spriteIndex}`, cc.SpriteFrame, (err, spriteFrame) => {
             if (err) {
                 return
