@@ -123,8 +123,8 @@ export default class GameUI extends cc.Component {
     private startColumnAnimation(column:number){
         // 计算需要移动的次数（加速阶段 + 匀速阶段 + 减速阶段）
         let speedUpSteps = 8  // 加速阶段步数
-        let constantSteps = 15 + this.getRandomInt(5, 15)  // 匀速阶段步数（随机增加变化）
-        let slowDownSteps = 12  // 减速阶段步数
+        let constantSteps = 12 + this.getRandomInt(5, 15)  // 匀速阶段步数（随机增加变化）
+        let slowDownSteps = 8  // 减速阶段步数
         // 计算需要额外移动的步数，确保停止时显示区域中心的item有正确的spriteIndex
         let extraSteps = this.calculateExtraSteps(column, this.targetSpriteIds[column])
         let totalSteps = speedUpSteps + constantSteps + slowDownSteps + extraSteps
@@ -156,16 +156,17 @@ export default class GameUI extends cc.Component {
             return 0
         }
         // 计算需要移动的距离（向上移动，y值减小）
-        let currentY = centerItem.y
+        let centerY = centerItem.y
         let targetY = targetItem.y
         // 如果targetItem在currentItem下方，需要多转一圈
-        if(targetY > currentY){
-            // targetItem在下方，需要移动 (5个item的高度) + (currentY - targetY)
-            let steps = Math.ceil((GameConf.SlotItemHeight * GameConf.SlotRowNum + (currentY - targetY)) / GameConf.SlotItemHeight)
+        if(targetY > centerY){
+             // targetItem在上方，直接计算步数
+             let steps = Math.ceil(( targetY - centerY) / GameConf.SlotItemHeight)
             return steps
         } else {
-            // targetItem在上方，直接计算步数
-            let steps = Math.ceil((currentY - targetY) / GameConf.SlotItemHeight)
+            if(targetY == centerY)return 0
+           // targetItem在下方，需要移动 (5个item的高度) + (currentY - targetY)
+           let steps = Math.ceil((GameConf.SlotItemHeight * GameConf.SlotRowNum + (centerY - targetY)) / GameConf.SlotItemHeight)
             return steps
         }
     }
@@ -219,6 +220,7 @@ export default class GameUI extends cc.Component {
                 .call(() => {
                     if(node.y <= GameConf.SlotLastY){
                         // 回到第一个位置，并更新spriteIndex（循环）
+                        // 确保位置精确对齐到网格
                         node.setPosition(0, GameConf.SlotFirstY)
                         this.updateItemSpriteIndex(node, column)
                     }
@@ -297,13 +299,41 @@ export default class GameUI extends cc.Component {
             return
         }
         
-        // 计算需要调整的偏移量
+        // 计算需要调整的偏移量，使目标item移动到显示区域中心
         let offset = targetItem.y - displayCenterY
         
         // 调整该列所有item的位置
         for(let i = 0; i < this.slotItemArr[column].length; i++){
             let item = this.slotItemArr[column][i]
             item.y -= offset
+        }
+        
+        // 对齐所有item到正确的网格位置（300, 150, 0, -150, -300）
+        this.alignItemsToGrid(column)
+    }
+    
+    /**将所有item对齐到网格位置 */
+    private alignItemsToGrid(column:number){
+        // 标准网格位置：300, 150, 0, -150, -300
+        // 根据item的当前y坐标，找到最接近的标准位置
+        
+        // 先按y坐标排序item（从大到小），并记录原始索引
+        let itemsWithIndex = this.slotItemArr[column].map((item, index) => ({
+            item: item,
+            index: index,
+            y: item.y
+        }))
+        itemsWithIndex.sort((a, b) => b.y - a.y)
+        
+        // 标准位置数组（从大到小）：300, 150, 0, -150, -300
+        let standardPositions = []
+        for(let i = 0; i < GameConf.SlotRowNum; i++){
+            standardPositions.push(GameConf.SlotFirstY - i * GameConf.SlotItemHeight)
+        }
+        
+        // 将每个item对齐到对应的标准位置
+        for(let i = 0; i < itemsWithIndex.length && i < standardPositions.length; i++){
+            itemsWithIndex[i].item.y = standardPositions[i]
         }
     }
     
