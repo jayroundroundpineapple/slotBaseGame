@@ -19,10 +19,7 @@ export default class MaskUI extends cc.Component {
     }
     
     setMask(){
-        // 确保Widget已经更新
-        // 如果Widget没有更新，节点的实际位置和大小可能不准确
-        
-        // 通过类型断言访问私有属性_graphics
+        // 确保Widget已经更新 如果Widget没有更新，节点的实际位置和大小可能不准确
         let graphics1 = (this.maskNode as any)._graphics;
         if (!graphics1) {
             console.error('Mask graphics not found!');
@@ -33,7 +30,6 @@ export default class MaskUI extends cc.Component {
         graphics1.fillColor = new cc.Color(255,255,255,0)
         
         // 获取btn在遮罩节点坐标系中的位置
-        // 方法1：通过世界坐标转换（推荐，更准确）
         let btn1WorldPos = this.btn1.parent.convertToWorldSpaceAR(this.btn1.position)
         let btn1LocalPos = this.maskNode.node.parent.convertToNodeSpaceAR(btn1WorldPos)
         
@@ -52,14 +48,14 @@ export default class MaskUI extends cc.Component {
             btn1LocalPos.y - btn1Height / 2,
             btn1Width,
             btn1Height,
-            20
+            0
         )
         graphics1.roundRect(
             btn2LocalPos.x - btn2Width / 2,
             btn2LocalPos.y - btn2Height / 2,
             btn2Width,
             btn2Height,
-            10
+            0
         )
         graphics1.fill()
     }
