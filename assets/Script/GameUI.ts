@@ -12,8 +12,6 @@ export default class GameUI extends cc.Component {
     @property(cc.Node)
     private bgNode:cc.Node = null
     @property(cc.Node)
-    private slotBox:cc.Node = null
-    @property(cc.Node)
     private slotColmunArr:cc.Node[] = [] //slot列数
     @property(cc.Prefab)
     private slotItemPre:cc.Prefab = null  //slot预制体
