@@ -21,6 +21,17 @@ export class GameConf{
     public static BoxFirstX = -231.5
     /**第0行box的y坐标 */
     public static BoxFirstY = -220
+    /**游戏数据配置 */
+    public static GameDataArr = [
+        [3,3,3,3,3,3,3,3],
+        [2,2,2,2,1,1,1,1],
+        [2,2,2,0,0,1,1,1],
+        [2,2,0,2,1,0,1,1],
+        [2,0,2,2,1,1,0,1],
+        [2,2,2,2,1,1,1,1],
+        [2,2,0,2,1,0,1,1],
+        [2,2,2,2,1,1,1,1],
+    ]
 }
 
 window['GameConf'] = GameConf
