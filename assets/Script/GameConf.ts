@@ -3,30 +3,24 @@ export const enum JarType{
     Pink = 1,
     Green = 2
 }
+export const enum BoxType{
+    Blue = 0,
+    Red = 1,
+    Yellow = 2,
+    Money = 3
+}
 export class GameConf{
-    /**slot列数 */
-    public static SlotColumnNum = 3
+    public static BoxColMunNum = 8
+    public static BoxRowNum = 8
 
-    /**slot的行数 */
-    public static SlotRowNum = 5
-
-    /**slot显示行数 */
-    public static SlotShowRowNum = 3
-
-    /**slot每个item的宽度 */
-    public static SlotItemWidth = 120
-
-    /**slot每个item的高度 */
-    public static SlotItemHeight = 150
-
-    /**每个slot之间的间隔 */
-    public static SlotItemGap = 150
-
-    /**第1个slot的Y坐标 */
-    public static SlotFirstY = 300
-
-    /**最后1个slot的Y坐标 */
-    public static SlotLastY = -450
+    /**每个box的列间距 */
+    public static BoxColumnGap = 65
+   /**每个box的行间距 */
+    public static BoxRowGap = 65
+    /**第0列box的x坐标 */
+    public static BoxFirstX = -231.5
+    /**第0行box的y坐标 */
+    public static BoxFirstY = -220
 }
 
 window['GameConf'] = GameConf

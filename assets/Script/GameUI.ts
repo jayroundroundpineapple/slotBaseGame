@@ -1,4 +1,5 @@
 
+import BoxItem from "./BoxItem";
 import { GameConf } from "./GameConf";
 import { GameModel } from "./GameModel";
 import RESSpriteFrame from "./RESSpriteFrame";
@@ -9,6 +10,10 @@ const { ccclass, property } = cc._decorator;
 
 @ccclass
 export default class GameUI extends cc.Component {
+    @property(cc.Prefab)
+    private boxItemPrefab:cc.Prefab = null
+    @property(cc.Node)
+    private boxbornNode:cc.Node = null;
     @property(cc.Node)
     private bgNode:cc.Node = null
     @property(cc.Node)
@@ -17,6 +22,7 @@ export default class GameUI extends cc.Component {
     private maskNode:cc.Node = null
     
 
+    boxData:BoxItem[] = [];
     private bgmAudioFlag:boolean = true
     private canPlayMusic:boolean = false
     private gameModel: GameModel = null
@@ -44,7 +50,16 @@ export default class GameUI extends cc.Component {
        
     }
     private initGame(){
-        
+        for(let i = 0; i < GameConf.BoxColMunNum; i++){
+            for(let j = 0; j < GameConf.BoxRowNum; j++){
+                let boxItemNode = cc.instantiate(this.boxItemPrefab)
+                let boxItem = boxItemNode.getComponent(BoxItem)
+                boxItemNode.parent = this.boxbornNode;
+                boxItem.getComponent(BoxItem).initBoxItem(j*GameConf.BoxColMunNum+i,this.getRandomInt(0,1),i,j)
+                boxItemNode.setPosition(GameConf.BoxFirstX + i * GameConf.BoxColumnGap, GameConf.BoxFirstY + j * GameConf.BoxRowGap)
+                this.boxData.push(boxItem)
+            }
+        }
     }
     private getRandomInt(min: number, max: number) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
