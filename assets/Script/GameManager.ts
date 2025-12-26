@@ -204,6 +204,8 @@ export class GameManager {
             .call(() => {
                 // 清理Box数据
                 this.removeBox(mapBoxItem);
+                //这里执行下降逻辑
+                this.downBox(mapBoxItem);
             })
             .start();
         if (zidanComponent.animNode) {
@@ -218,7 +220,9 @@ export class GameManager {
             // onComplete && onComplete();
         });
     }
+    downBox(mapBoxItem: MapBoxItem){
 
+    }
     /**
      * 移除Box
      */
@@ -226,7 +230,6 @@ export class GameManager {
         if (mapBoxItem.BoxItem && mapBoxItem.BoxItem.node) {
             mapBoxItem.BoxItem.node.destroy();
         }
-        
         mapBoxItem.isFree = true;
         mapBoxItem.BoxItem = null;
         mapBoxItem.colMun = -1;
