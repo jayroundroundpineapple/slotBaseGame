@@ -203,9 +203,11 @@ export class GameManager {
             .to(0.05, { scale: 0 })
             .call(() => {
                 // 清理Box数据
-                this.removeBox(mapBoxItem);
+                // this.removeBox(mapBoxItem);
+                console.log('mapBoxItem',mapBoxItem.colMun);
                 //这里执行下降逻辑
                 this.downBox(mapBoxItem);
+                // this.removeBox(mapBoxItem);
             })
             .start();
         if (zidanComponent.animNode) {
@@ -221,7 +223,39 @@ export class GameManager {
         });
     }
     downBox(mapBoxItem: MapBoxItem){
-
+        /**先要在最当前列的最上层创建一个空闲的方块 */
+        let currentColMun = mapBoxItem.colMun;
+        let boxItemNode = cc.instantiate(this.gameUI.boxItemPrefab);
+        boxItemNode.parent = this.gameUI.boxbornNode;
+        boxItemNode.setPosition(
+        GameConf.BoxFirstX + currentColMun * GameConf.BoxColumnGap, 
+        GameConf.BoxFirstY + 8 * GameConf.BoxRowGap);
+        let boxItem = boxItemNode.getComponent(BoxItem);
+        boxItem.initBoxItem(-1, 1, 0, 8);
+        let tempBoxItem:BoxItem = null;
+        let upBoxItem:BoxItem = null;
+        for(let i = 0; i < GameConf.BoxRowNum; i++) {
+            if(i + 1 == GameConf.BoxRowNum){
+                upBoxItem = boxItem
+            }else{
+                upBoxItem = this.boxDataList[currentColMun*GameConf.BoxRowNum + i + 1].BoxItem;
+            }
+            tempBoxItem = this.boxDataList[currentColMun*GameConf.BoxRowNum + i].BoxItem;
+            this.boxDataList[currentColMun*GameConf.BoxRowNum + i].BoxItem = upBoxItem;
+            if(i + 1 == GameConf.BoxRowNum){
+                boxItem = tempBoxItem
+            }else{
+                this.boxDataList[currentColMun*GameConf.BoxRowNum + i + 1].BoxItem = tempBoxItem;
+            }
+        }
+        let boxNode = null
+        for(let i = 0; i < GameConf.BoxRowNum; i++) {
+            this.boxDataList[currentColMun*GameConf.BoxRowNum + i].isFree = false;
+           boxNode = this.boxDataList[currentColMun*GameConf.BoxRowNum + i].BoxItem.node;
+           cc.tween(boxNode)
+           .by(0.1, { y: - GameConf.BoxRowGap },{easing:"quadIn"})
+           .start()
+        }
     }
     /**
      * 移除Box

@@ -37,7 +37,6 @@ export default class zidanItem extends cc.Component {
         let finishedHandler = () => {
             if (!this.isAnimFinished) {
                 this.isAnimFinished = true;
-                console.log('爆炸动画完成 - finished事件触发');
                 animation.off('finished', finishedHandler, this);
                 if (this.animCallback) {
                     this.animCallback();
