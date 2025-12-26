@@ -148,11 +148,7 @@ export class GameManager {
             this.shootSequence(targets, index + 1);
             return;
         }
-
-        // 射击当前目标
-        console.log(`开始射击目标 [${index}/${targets.length - 1}]`);
         this.shootSingle(mapBoxItem, () => {
-            console.log(`目标 [${index}] 射击完成，准备射击下一个`);
             this.shootSequence(targets, index + 1);
         });
     }
@@ -179,10 +175,11 @@ export class GameManager {
 
         // 子弹移动动画
         cc.tween(zidanNode)
-            .to(0.3, { position: localPos }, { easing: 'quadIn' })
+            .to(0.1, { position: localPos }, { easing: 'quadIn' })
             .call(() => {
                 // 击中目标
-                this.onHitTarget(mapBoxItem, targetNode, zidanNode, zidanComponent, onComplete);
+                this.onHitTarget(mapBoxItem, targetNode, zidanNode, zidanComponent);
+                onComplete && onComplete();
             })
             .start();
     }
@@ -199,7 +196,7 @@ export class GameManager {
     ) {
         // 目标消失动画
         cc.tween(targetNode)
-            .to(0.1, { scale: 0 })
+            .to(0.05, { scale: 0 })
             .call(() => {
                 // 清理Box数据
                 this.removeBox(mapBoxItem);
@@ -214,7 +211,7 @@ export class GameManager {
             // 爆炸动画完成后，销毁整个子弹节点
             zidanNode.destroy();
             // 调用完成回调，继续射击下一个目标
-            onComplete && onComplete();
+            // onComplete && onComplete();
         });
     }
 
