@@ -1,121 +1,97 @@
 
-import BoxItem from "./BoxItem";
-import { GameConf } from "./GameConf";
+import { GameManager } from "./GameManager";
 import { GameModel } from "./GameModel";
 import RESSpriteFrame from "./RESSpriteFrame";
-import zidanItem from "./zidanItem";
 
 
 const { ccclass, property } = cc._decorator;
-interface MapBoxItem{
-    BoxItem:BoxItem,
-    isFree:boolean,
-    colMun:number,
-    rowNum:number
-}
+
+/**
+ * 游戏UI管理器
+ * 负责UI显示和用户交互，逻辑部分由GameManager处理
+ */
 @ccclass
 export default class GameUI extends cc.Component {
     @property(cc.Prefab)
-    private zidanPrefab: cc.Prefab = null
+    public zidanPrefab: cc.Prefab = null;
+    
     @property(cc.Node)
-    private targetAttackNode: cc.Node = null
+    public targetAttackNode: cc.Node = null;
+    
     @property(cc.Node)
-    private targetZiArr: cc.Node[] = []
+    public targetZiArr: cc.Node[] = [];
+    
     @property(cc.Prefab)
-    private boxItemPrefab: cc.Prefab = null
+    public boxItemPrefab: cc.Prefab = null;
+    
     @property(cc.Node)
-    private boxbornNode: cc.Node = null;
+    public boxbornNode: cc.Node = null;
+    
     @property(cc.Node)
-    private bgNode: cc.Node = null
+    private bgNode: cc.Node = null;
+    
     @property(cc.Node)
-    private maxBg: cc.Node = null
+    private maxBg: cc.Node = null;
+    
     @property(cc.Node)
-    private maskNode: cc.Node = null
+    private maskNode: cc.Node = null;
 
-
-    boxData: MapBoxItem[] = [];
-    private bgmAudioFlag: boolean = true
-    private canPlayMusic: boolean = false
-    private gameModel: GameModel = null
+    private bgmAudioFlag: boolean = true;
+    private canPlayMusic: boolean = false;
+    private gameModel: GameModel = null;
+    private gameManager: GameManager = null;
 
 
     protected onLoad(): void {
-        this.gameModel = new GameModel()
-        this.gameModel.mGame = this
+        this.gameModel = new GameModel();
+        this.gameModel.mGame = this;
+        
+        // 初始化游戏管理器
+        this.gameManager = GameManager.instance;
+        this.gameManager.init(this);
     }
+
     protected start(): void {
         PlayerAdSdk.init();
-        this.resize()
+        this.resize();
         let that = this;
+        
         /**屏幕旋转尺寸改变 */
         cc.view.setResizeCallback(() => {
             that.resize();
-        })
+        });
+        
         cc.find('Canvas').on('touchstart', () => {
-            this.canPlayMusic = true
-            this.bgmAudioFlag && cc.audioEngine.play(RESSpriteFrame.instance.bgmAudioClip, false, 1)
-            this.bgmAudioFlag = false
-        })
-        this.resize()
-        this.initGame()
+            this.canPlayMusic = true;
+            this.bgmAudioFlag && cc.audioEngine.play(RESSpriteFrame.instance.bgmAudioClip, false, 1);
+            this.bgmAudioFlag = false;
+        });
+        
+        this.resize();
+        this.initGame();
+    }
 
-    }
+    /**
+     * 初始化游戏（UI层）
+     */
     private initGame() {
-        let gameData = GameConf.GameDataArr
-        let rowNum = -1
-        let colMun = -1
-        for (let i = 0; i < GameConf.BoxColMunNum; i++) {
-            for (let j = 0; j < GameConf.BoxRowNum; j++) {
-                rowNum = j
-                colMun = i
-                let boxItemNode = cc.instantiate(this.boxItemPrefab)
-                let boxItem = boxItemNode.getComponent(BoxItem)
-                boxItemNode.parent = this.boxbornNode;
-                boxItem.getComponent(BoxItem).initBoxItem(j * GameConf.BoxColMunNum + i, gameData[j][i], i, j)
-                boxItemNode.setPosition(GameConf.BoxFirstX + i * GameConf.BoxColumnGap, GameConf.BoxFirstY + j * GameConf.BoxRowGap)
-                this.boxData.push({BoxItem:boxItem,isFree:false,colMun:colMun,rowNum:rowNum})
-            }
+        // 通过GameManager初始化游戏逻辑
+        this.gameManager.initGame();
+        
+        if (this.targetAttackNode) {
+            this.targetAttackNode.on(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this);
         }
-        this.targetAttackNode.on(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this)
     }
-    onTargetAttack() {
-        this.targetAttackNode.off(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this)
-        /**移动到炮塔 */
-        cc.tween(this.targetAttackNode)
-            .delay(0.1)
-            .to(0.3, { position: this.targetZiArr[0].position })
-            .call(() => {
-                this.shootFunc(this.boxData[0])
-            })
-            .start()
-    }
-    /**发射炮弹 */
-    shootFunc(MapBoxItem: MapBoxItem) {
-        let zidanNode = cc.instantiate(this.zidanPrefab)
-        let ItemCompoent = zidanNode.getComponent(zidanItem)
-        zidanNode.parent = this.targetAttackNode
-        zidanNode.setPosition(0, 0)
-        let targetNode = MapBoxItem.BoxItem.node
-        let pos = targetNode.parent.convertToWorldSpaceAR(targetNode.position)
-        pos = zidanNode.parent.convertToNodeSpaceAR(pos)
-        cc.tween(zidanNode)
-        .to(0.3,{position:pos},{easing:'quadIn'})
-        .call(()=>{
-            cc.tween(targetNode)
-            .to(0.1,{scale:0})
-            .call(()=>{
-                targetNode.destroy()
-                MapBoxItem.isFree = true
-                MapBoxItem.BoxItem = null
-                MapBoxItem.colMun = -1
-                MapBoxItem.rowNum = -1
-            })
-            .start()
-            ItemCompoent.destroyZidan()
-            ItemCompoent.playboomAnim(()=>{
-                zidanNode.destroy()
-            })
-        }).start()
+
+    /**
+     * 攻击目标（UI事件处理）
+     */
+    private onTargetAttack() {
+        if (this.targetAttackNode) {
+            this.targetAttackNode.off(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this);
+        }
+        // 调用GameManager处理攻击逻辑
+        this.gameManager.startAttack();
     }
     private getRandomInt(min: number, max: number) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -147,7 +123,24 @@ export default class GameUI extends cc.Component {
         PlayerAdSdk.gameEnd()
         PlayerAdSdk.jumpStore()
     }
-    protected onDisable(): void {
+    /**
+     * 获取GameManager实例（供外部访问）
+     */
+    public getGameManager(): GameManager {
+        return this.gameManager;
+    }
 
+    protected onDisable(): void {
+        // 清理事件
+        if (this.targetAttackNode) {
+            this.targetAttackNode.off(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this);
+        }
+    }
+
+    protected onDestroy(): void {
+        // 清理GameManager
+        if (this.gameManager) {
+            this.gameManager.destroy();
+        }
     }
 }   
