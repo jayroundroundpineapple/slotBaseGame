@@ -97,25 +97,16 @@ export class GameManager {
      * 开始攻击
      */
     public startAttack() {
-        if (!this.isGameInitialized) {
-            console.warn('游戏未初始化');
-            return;
+        let attackArr:MapBoxItem[] = []
+        for(let i = 0; i < GameConf.BoxColMunNum; i++) {
+            attackArr.push(this.boxDataList[i*GameConf.BoxColMunNum])
         }
-
-        if (!this.gameUI || !this.gameUI.targetAttackNode) {
-            console.error('攻击节点未设置');
-            return;
-        }
-
         // 移动到炮塔位置
         cc.tween(this.gameUI.targetAttackNode)
             .delay(0.1)
             .to(0.3, { position: this.gameUI.targetZiArr[0].position })
             .call(() => {
-                // 攻击第一个Box（示例：可以改为攻击多个目标）
-                if (this.boxDataList.length > 0) {
-                    this.shoot([this.boxDataList[0]]);
-                }
+                this.shoot(attackArr);
             })
             .start();
     }
@@ -129,15 +120,12 @@ export class GameManager {
             console.warn('目标Box数组为空');
             return;
         }
-
         // 过滤掉无效的目标
         let validTargets = mapBoxItems.filter(item => item && item.BoxItem && !item.isFree);
-        
         if (validTargets.length === 0) {
             console.warn('没有有效的目标Box');
             return;
         }
-
         // 按顺序射击
         this.shootSequence(validTargets, 0);
     }
@@ -149,21 +137,22 @@ export class GameManager {
      */
     private shootSequence(targets: MapBoxItem[], index: number) {
         if (index >= targets.length) {
-            // 所有目标射击完成
-            console.log('所有目标射击完成');
+            console.log(`所有目标射击完成，共射击 ${targets.length} 个目标`);
             return;
         }
 
         let mapBoxItem = targets[index];
         if (!mapBoxItem || !mapBoxItem.BoxItem || mapBoxItem.isFree) {
             // 如果当前目标无效，跳过并射击下一个
+            console.log(`跳过无效目标 [${index}]`);
             this.shootSequence(targets, index + 1);
             return;
         }
 
         // 射击当前目标
+        console.log(`开始射击目标 [${index}/${targets.length - 1}]`);
         this.shootSingle(mapBoxItem, () => {
-            // 当前目标射击完成后，射击下一个
+            console.log(`目标 [${index}] 射击完成，准备射击下一个`);
             this.shootSequence(targets, index + 1);
         });
     }
@@ -216,14 +205,15 @@ export class GameManager {
                 this.removeBox(mapBoxItem);
             })
             .start();
-
-        // 销毁子弹节点
-        zidanComponent.destroyZidan();
-
-        // 播放爆炸动画，动画完成后调用回调
+        if (zidanComponent.animNode) {
+            zidanComponent.animNode.active = true;
+        }
+        // 隐藏子弹节点
+        zidanComponent.hideZidan();
         zidanComponent.playboomAnim(() => {
+            // 爆炸动画完成后，销毁整个子弹节点
             zidanNode.destroy();
-            // 爆炸动画完成后，调用完成回调
+            // 调用完成回调，继续射击下一个目标
             onComplete && onComplete();
         });
     }
