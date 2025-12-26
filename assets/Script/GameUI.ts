@@ -3,12 +3,16 @@ import BoxItem from "./BoxItem";
 import { GameConf } from "./GameConf";
 import { GameModel } from "./GameModel";
 import RESSpriteFrame from "./RESSpriteFrame";
-import slotItem from "./slotItem";
 import zidanItem from "./zidanItem";
 
 
 const { ccclass, property } = cc._decorator;
-
+interface MapBoxItem{
+    BoxItem:BoxItem,
+    isFree:boolean,
+    colMun:number,
+    rowNum:number
+}
 @ccclass
 export default class GameUI extends cc.Component {
     @property(cc.Prefab)
@@ -29,7 +33,7 @@ export default class GameUI extends cc.Component {
     private maskNode: cc.Node = null
 
 
-    boxData: BoxItem[] = [];
+    boxData: MapBoxItem[] = [];
     private bgmAudioFlag: boolean = true
     private canPlayMusic: boolean = false
     private gameModel: GameModel = null
@@ -58,14 +62,18 @@ export default class GameUI extends cc.Component {
     }
     private initGame() {
         let gameData = GameConf.GameDataArr
+        let rowNum = -1
+        let colMun = -1
         for (let i = 0; i < GameConf.BoxColMunNum; i++) {
             for (let j = 0; j < GameConf.BoxRowNum; j++) {
+                rowNum = j
+                colMun = i
                 let boxItemNode = cc.instantiate(this.boxItemPrefab)
                 let boxItem = boxItemNode.getComponent(BoxItem)
                 boxItemNode.parent = this.boxbornNode;
                 boxItem.getComponent(BoxItem).initBoxItem(j * GameConf.BoxColMunNum + i, gameData[j][i], i, j)
                 boxItemNode.setPosition(GameConf.BoxFirstX + i * GameConf.BoxColumnGap, GameConf.BoxFirstY + j * GameConf.BoxRowGap)
-                this.boxData.push(boxItem)
+                this.boxData.push({BoxItem:boxItem,isFree:false,colMun:colMun,rowNum:rowNum})
             }
         }
         this.targetAttackNode.on(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this)
@@ -77,21 +85,32 @@ export default class GameUI extends cc.Component {
             .delay(0.1)
             .to(0.3, { position: this.targetZiArr[0].position })
             .call(() => {
-                this.shootFunc(this.boxData[0].node)
+                this.shootFunc(this.boxData[0])
             })
             .start()
     }
     /**发射炮弹 */
-    shootFunc(targetNode: cc.Node) {
+    shootFunc(MapBoxItem: MapBoxItem) {
         let zidanNode = cc.instantiate(this.zidanPrefab)
         let ItemCompoent = zidanNode.getComponent(zidanItem)
         zidanNode.parent = this.targetAttackNode
         zidanNode.setPosition(0, 0)
+        let targetNode = MapBoxItem.BoxItem.node
         let pos = targetNode.parent.convertToWorldSpaceAR(targetNode.position)
         pos = zidanNode.parent.convertToNodeSpaceAR(pos)
         cc.tween(zidanNode)
         .to(0.3,{position:pos},{easing:'quadIn'})
         .call(()=>{
+            cc.tween(targetNode)
+            .to(0.1,{scale:0})
+            .call(()=>{
+                targetNode.destroy()
+                MapBoxItem.isFree = true
+                MapBoxItem.BoxItem = null
+                MapBoxItem.colMun = -1
+                MapBoxItem.rowNum = -1
+            })
+            .start()
             ItemCompoent.destroyZidan()
             ItemCompoent.playboomAnim(()=>{
                 zidanNode.destroy()
