@@ -97,6 +97,7 @@ export class GameManager {
      * 开始攻击
      */
     public startAttack() {
+       
         let attackArr:MapBoxItem[] = []
         for(let i = 0; i < GameConf.BoxColMunNum; i++) {
             attackArr.push(this.boxDataList[i*GameConf.BoxColMunNum])
@@ -148,6 +149,9 @@ export class GameManager {
             this.shootSequence(targets, index + 1);
             return;
         }
+        let lbNode = this.gameUI.targetAttackNode.children[0];
+        let booldNum = lbNode.getComponent(cc.Label).string;
+        lbNode.getComponent(cc.Label).string = (Number(booldNum) - 1).toString();
         this.shootSingle(mapBoxItem, () => {
             this.shootSequence(targets, index + 1);
         });
