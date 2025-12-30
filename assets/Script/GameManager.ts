@@ -1,6 +1,7 @@
 import BoxItem from "./BoxItem";
 import { BoxType, GameConf } from "./GameConf";
 import GameUI from "./GameUI";
+import RESSpriteFrame from "./RESSpriteFrame";
 import zidanItem from "./zidanItem";
 
 /**
@@ -139,6 +140,7 @@ export class GameManager {
     private shootSequence(targets: MapBoxItem[], index: number) {
         if (index >= targets.length) {
             console.log(`所有目标射击完成，共射击 ${targets.length} 个目标`);
+            this.gameUI.showMoneyFly();
             return;
         }
 
@@ -198,6 +200,7 @@ export class GameManager {
         zidanComponent: zidanItem,
         onComplete?: () => void
     ) {
+        cc.audioEngine.play(RESSpriteFrame.instance.clearAudioClip,false,1)
         // 目标消失动画
         cc.tween(targetNode)
             .to(0.05, { scale: 0 })

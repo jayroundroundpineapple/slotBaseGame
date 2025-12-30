@@ -1,0 +1,41 @@
+{
+  "__type__": "cc.AnimationClip",
+  "_name": "btn3",
+  "_objFlags": 0,
+  "_native": "",
+  "_duration": 0.16666666666666666,
+  "sample": 60,
+  "speed": 0.25,
+  "wrapMode": 2,
+  "curveData": {
+    "props": {
+      "position": [
+        {
+          "frame": 0,
+          "value": [
+            -50.462,
+            -286.275,
+            0
+          ]
+        },
+        {
+          "frame": 0.08333333333333333,
+          "value": [
+            -107.78,
+            -360.993,
+            0
+          ]
+        },
+        {
+          "frame": 0.16666666666666666,
+          "value": [
+            -49.439,
+            -286.274,
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "events": []
+}

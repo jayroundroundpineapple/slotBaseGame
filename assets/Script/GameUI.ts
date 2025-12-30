@@ -1,7 +1,12 @@
 
 import { GameManager } from "./GameManager";
 import { GameModel } from "./GameModel";
+import { LanguageManager } from "./language/LanguageManager";
 import RESSpriteFrame from "./RESSpriteFrame";
+import Anim from "./utils/Anim";
+import MoneyChange from "./utils/MoneyChange";
+import NotifyEffect from "./utils/NotifyEffect";
+import Utils from "./utils/Utils";
 
 
 const { ccclass, property } = cc._decorator;
@@ -12,35 +17,38 @@ const { ccclass, property } = cc._decorator;
  */
 @ccclass
 export default class GameUI extends cc.Component {
+    @property(cc.Node)
+    private finger:cc.Node = null
+    @property(cc.Node)
+    private resultNode: cc.Node = null;
+    @property(cc.Prefab)
+    public moneyPrefab: cc.Prefab = null;
+    @property(cc.Label)
+    private moneyLabel: cc.Label = null;
     @property(cc.Prefab)
     public zidanPrefab: cc.Prefab = null;
-    
     @property(cc.Node)
     public targetAttackNode: cc.Node = null;
-    
     @property(cc.Node)
     public targetZiArr: cc.Node[] = [];
-    
     @property(cc.Prefab)
     public boxItemPrefab: cc.Prefab = null;
-    
     @property(cc.Node)
     public boxbornNode: cc.Node = null;
-    
     @property(cc.Node)
     private bgNode: cc.Node = null;
-    
     @property(cc.Node)
     private maxBg: cc.Node = null;
     
     @property(cc.Node)
     private maskNode: cc.Node = null;
 
+    private moneyChange:MoneyChange = null;
     private bgmAudioFlag: boolean = true;
     private canPlayMusic: boolean = false;
     private gameModel: GameModel = null;
     private gameManager: GameManager = null;
-
+    amount:number = 0;
 
     protected onLoad(): void {
         this.gameModel = new GameModel();
@@ -50,7 +58,6 @@ export default class GameUI extends cc.Component {
         this.gameManager = GameManager.instance;
         this.gameManager.init(this);
     }
-
     protected start(): void {
         PlayerAdSdk.init();
         this.resize();
@@ -75,23 +82,38 @@ export default class GameUI extends cc.Component {
      * 初始化游戏（UI层）
      */
     private initGame() {
+        this.finger.active = true
+        this.resultNode.active = false
+        this.moneyChange = new MoneyChange(this.moneyLabel,false,this.amount);
+        this.moneyChange.prefix = `${LanguageManager.instance.getText(10001)}`;
+        this.moneyLabel.string = `${this.moneyChange.prefix}${this.amount}`;
         // 通过GameManager初始化游戏逻辑
         this.gameManager.initGame();
-        
-        if (this.targetAttackNode) {
-            this.targetAttackNode.on(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this);
-        }
+        // if (this.targetAttackNode) {
+        //     this.targetAttackNode.on(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this);
+        // }
+        this.bgNode.on(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this)
     }
-
     /**
      * 攻击目标（UI事件处理）
      */
     private onTargetAttack() {
-        if (this.targetAttackNode) {
-            this.targetAttackNode.off(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this);
-        }
+        this.canPlayMusic = true
+        cc.audioEngine.play(RESSpriteFrame.instance.clickAudioClip,false,1)
+        this.finger.active = false
+        this.bgNode.off(cc.Node.EventType.TOUCH_START, this.onTargetAttack, this)
         // 调用GameManager处理攻击逻辑
         this.gameManager.startAttack();
+    }
+    showMoneyFly(){
+        let targetPos = Utils.getLocalPositionWithOtherNode(this.node,this.moneyLabel.node)
+        targetPos.x -= 100
+        Anim.ins().ShowFlyAni(this.moneyPrefab,this.node,25,targetPos,()=>{},this,[this.moneyChange],100,()=>{
+            this.maskNode.active = true
+            NotifyEffect.NormalShowUI(this.resultNode,RESSpriteFrame.instance.comeOutAudioClip,0.3,true,()=>{
+                cc.audioEngine.play(RESSpriteFrame.instance.cherrUpAudioClip,false,1)
+            })
+        })
     }
     private getRandomInt(min: number, max: number) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
